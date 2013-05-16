@@ -22,13 +22,11 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
-import android.database.Cursor;
 import android.net.Uri;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
-import android.provider.ContactsContract.Contacts;
 import android.speech.srec.Recognizer;
-import android.util.Config;
 import android.util.Log;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -120,8 +118,8 @@ public class CommandRecognizerEngine extends RecognizerEngine {
 
     protected void setupGrammar() throws IOException, InterruptedException {
         // fetch the contact list
-        if (Config.LOGD) Log.d(TAG, "start getVoiceContacts");
-        if (Config.LOGD) Log.d(TAG, "contactsFile is " + (mContactsFile == null ?
+        if (false) Log.d(TAG, "start getVoiceContacts");
+        if (false) Log.d(TAG, "contactsFile is " + (mContactsFile == null ?
             "null" : "not null"));
         List<VoiceContact> contacts = mContactsFile != null ?
                 VoiceContact.getVoiceContactsFromFile(mContactsFile) :
@@ -143,12 +141,12 @@ public class CommandRecognizerEngine extends RecognizerEngine {
             }
 
             // load the empty Grammar
-            if (Config.LOGD) Log.d(TAG, "start new Grammar");
+            if (false) Log.d(TAG, "start new Grammar");
             mSrecGrammar = mSrec.new Grammar(SREC_DIR + "/grammars/VoiceDialer.g2g");
             mSrecGrammar.setupRecognizer();
 
             // reset slots
-            if (Config.LOGD) Log.d(TAG, "start grammar.resetAllSlots");
+            if (false) Log.d(TAG, "start grammar.resetAllSlots");
             mSrecGrammar.resetAllSlots();
 
             // add names to the grammar
@@ -160,18 +158,18 @@ public class CommandRecognizerEngine extends RecognizerEngine {
             }
 
             // compile the grammar
-            if (Config.LOGD) Log.d(TAG, "start grammar.compile");
+            if (false) Log.d(TAG, "start grammar.compile");
             mSrecGrammar.compile();
 
             // update g2g file
-            if (Config.LOGD) Log.d(TAG, "start grammar.save " + g2g.getPath());
+            if (false) Log.d(TAG, "start grammar.save " + g2g.getPath());
             g2g.getParentFile().mkdirs();
             mSrecGrammar.save(g2g.getPath());
         }
 
         // g2g file exists, but is not loaded
         else if (mSrecGrammar == null) {
-            if (Config.LOGD) Log.d(TAG, "start new Grammar loading " + g2g);
+            if (false) Log.d(TAG, "start new Grammar loading " + g2g);
             mSrecGrammar = mSrec.new Grammar(g2g.getPath());
             mSrecGrammar.setupRecognizer();
         }
@@ -183,28 +181,35 @@ public class CommandRecognizerEngine extends RecognizerEngine {
     }
 
     /**
+     * Number of phone ids appended to a grammer in {@link #addNameEntriesToGrammar(List)}.
+     */
+    private static final int PHONE_ID_COUNT = 7;
+
+    /**
      * Add a list of names to the grammar
      * @param contacts list of VoiceContacts to be added.
      */
     private void addNameEntriesToGrammar(List<VoiceContact> contacts)
             throws InterruptedException {
-        if (Config.LOGD) Log.d(TAG, "addNameEntriesToGrammar " + contacts.size());
+        if (false) Log.d(TAG, "addNameEntriesToGrammar " + contacts.size());
 
         HashSet<String> entries = new HashSet<String>();
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         int count = 0;
         for (VoiceContact contact : contacts) {
             if (Thread.interrupted()) throw new InterruptedException();
             String name = scrubName(contact.mName);
             if (name.length() == 0 || !entries.add(name)) continue;
             sb.setLength(0);
+            // The number of ids appended here must be same as PHONE_ID_COUNT.
             sb.append("V='");
             sb.append(contact.mContactId).append(' ');
             sb.append(contact.mPrimaryId).append(' ');
             sb.append(contact.mHomeId).append(' ');
             sb.append(contact.mMobileId).append(' ');
             sb.append(contact.mWorkId).append(' ');
-            sb.append(contact.mOtherId);
+            sb.append(contact.mOtherId).append(' ');
+            sb.append(contact.mFallbackId);
             sb.append("'");
             try {
                 mSrecGrammar.addWordToSlot("@Names", name, null, 1, sb.toString());
@@ -222,7 +227,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
      * add a list of application labels to the 'open x' grammar
      */
     private void loadOpenEntriesTable() throws InterruptedException, IOException {
-        if (Config.LOGD) Log.d(TAG, "addOpenEntriesToGrammar");
+        if (false) Log.d(TAG, "addOpenEntriesToGrammar");
 
         // fill this
         File oe = mActivity.getFileStreamPath(OPEN_ENTRIES);
@@ -279,7 +284,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
             }
 
             // write list
-            if (Config.LOGD) Log.d(TAG, "addOpenEntriesToGrammar writing " + oe);
+            if (false) Log.d(TAG, "addOpenEntriesToGrammar writing " + oe);
             try {
                  FileOutputStream fos = new FileOutputStream(oe);
                  try {
@@ -297,7 +302,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
 
         // read the list
         else {
-            if (Config.LOGD) Log.d(TAG, "addOpenEntriesToGrammar reading " + oe);
+            if (false) Log.d(TAG, "addOpenEntriesToGrammar reading " + oe);
             try {
                 FileInputStream fis = new FileInputStream(oe);
                 try {
@@ -452,7 +457,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
         File[] files = context.getFilesDir().listFiles(ff);
         if (files != null) {
             for (File file : files) {
-                if (Config.LOGD) Log.d(TAG, "deleteAllG2GFiles " + file);
+                if (false) Log.d(TAG, "deleteAllG2GFiles " + file);
                 file.delete();
             }
         }
@@ -466,7 +471,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
     public static void deleteCachedGrammarFiles(Context context) {
         deleteAllG2GFiles(context);
         File oe = context.getFileStreamPath(OPEN_ENTRIES);
-        if (Config.LOGD) Log.v(TAG, "deleteCachedGrammarFiles " + oe);
+        if (false) Log.v(TAG, "deleteCachedGrammarFiles " + oe);
         if (oe.exists()) oe.delete();
     }
 
@@ -935,7 +940,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
      */
     protected  void onRecognitionSuccess(RecognizerClient recognizerClient)
             throws InterruptedException {
-        if (Config.LOGD) Log.d(TAG, "onRecognitionSuccess");
+        if (false) Log.d(TAG, "onRecognitionSuccess");
 
         if (mLogger != null) mLogger.logNbestHeader();
 
@@ -954,11 +959,11 @@ public class CommandRecognizerEngine extends RecognizerEngine {
             String literal = mSrec.getResult(result, Recognizer.KEY_LITERAL);
             String semantic = mSrec.getResult(result, Recognizer.KEY_MEANING);
             String msg = "conf=" + conf + " lit=" + literal + " sem=" + semantic;
-            if (Config.LOGD) Log.d(TAG, msg);
+            if (false) Log.d(TAG, msg);
             int confInt = Integer.parseInt(conf);
             if (highestConfidence < confInt) highestConfidence = confInt;
             if (confInt < MINIMUM_CONFIDENCE || confInt * 2 < highestConfidence) {
-                if (Config.LOGD) Log.d(TAG, "confidence too low, dropping");
+                if (false) Log.d(TAG, "confidence too low, dropping");
                 break;
             }
             if (mLogger != null) mLogger.logLine(msg);
@@ -977,14 +982,17 @@ public class CommandRecognizerEngine extends RecognizerEngine {
             }
 
             // CALL JACK JONES
-            else if ("CALL".equalsIgnoreCase(commands[0]) && commands.length >= 7) {
+            // commands should become ["CALL", id, id, ..] reflecting addNameEntriesToGrammar().
+            else if ("CALL".equalsIgnoreCase(commands[0])
+                    && commands.length >= PHONE_ID_COUNT + 1) {
                 // parse the ids
                 long contactId = Long.parseLong(commands[1]); // people table
-                long phoneId   = Long.parseLong(commands[2]); // phones table
+                long primaryId   = Long.parseLong(commands[2]); // phones table
                 long homeId    = Long.parseLong(commands[3]); // phones table
                 long mobileId  = Long.parseLong(commands[4]); // phones table
                 long workId    = Long.parseLong(commands[5]); // phones table
                 long otherId   = Long.parseLong(commands[6]); // phones table
+                long fallbackId = Long.parseLong(commands[7]); // phones table
                 Resources res  = mActivity.getResources();
 
                 int count = 0;
@@ -994,44 +1002,46 @@ public class CommandRecognizerEngine extends RecognizerEngine {
                 //
 
                 // 'CALL JACK JONES AT HOME|MOBILE|WORK|OTHER'
-                if (commands.length == 8) {
+                if (commands.length == PHONE_ID_COUNT + 2) {
+                    // The last command should imply the type of the phone number.
+                    final String spokenPhoneIdCommand = commands[PHONE_ID_COUNT + 1];
                     long spokenPhoneId =
-                            "H".equalsIgnoreCase(commands[7]) ? homeId :
-                            "M".equalsIgnoreCase(commands[7]) ? mobileId :
-                            "W".equalsIgnoreCase(commands[7]) ? workId :
-                            "O".equalsIgnoreCase(commands[7]) ? otherId :
+                            "H".equalsIgnoreCase(spokenPhoneIdCommand) ? homeId :
+                            "M".equalsIgnoreCase(spokenPhoneIdCommand) ? mobileId :
+                            "W".equalsIgnoreCase(spokenPhoneIdCommand) ? workId :
+                            "O".equalsIgnoreCase(spokenPhoneIdCommand) ? otherId :
                              VoiceContact.ID_UNDEFINED;
                     if (spokenPhoneId != VoiceContact.ID_UNDEFINED) {
                         addCallIntent(intents, ContentUris.withAppendedId(
                                 Phone.CONTENT_URI, spokenPhoneId),
-                                literal, commands[7], 0);
+                                literal, spokenPhoneIdCommand, 0);
                         count++;
                     }
                 }
 
                 // 'CALL JACK JONES', with valid default phoneId
-                else if (commands.length == 7) {
+                else if (commands.length == PHONE_ID_COUNT + 1) {
                     String phoneType = null;
                     CharSequence phoneIdMsg = null;
-                    if (phoneId == VoiceContact.ID_UNDEFINED) {
+                    if (primaryId == VoiceContact.ID_UNDEFINED) {
                         phoneType = null;
                         phoneIdMsg = null;
-                    } else if (phoneId == homeId) {
+                    } else if (primaryId == homeId) {
                         phoneType = "H";
                         phoneIdMsg = res.getText(R.string.at_home);
-                    } else if (phoneId == mobileId) {
+                    } else if (primaryId == mobileId) {
                         phoneType = "M";
                         phoneIdMsg = res.getText(R.string.on_mobile);
-                    } else if (phoneId == workId) {
+                    } else if (primaryId == workId) {
                         phoneType = "W";
                         phoneIdMsg = res.getText(R.string.at_work);
-                    } else if (phoneId == otherId) {
+                    } else if (primaryId == otherId) {
                         phoneType = "O";
                         phoneIdMsg = res.getText(R.string.at_other);
                     }
                     if (phoneIdMsg != null) {
                         addCallIntent(intents, ContentUris.withAppendedId(
-                                Phone.CONTENT_URI, phoneId),
+                                Phone.CONTENT_URI, primaryId),
                                 literal + phoneIdMsg, phoneType, 0);
                         count++;
                     }
@@ -1044,7 +1054,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
 
                     // trim last two words, ie 'at home', etc
                     String lit = literal;
-                    if (commands.length == 8) {
+                    if (commands.length == PHONE_ID_COUNT + 2) {
                         String[] words = literal.trim().split(" ");
                         StringBuffer sb = new StringBuffer();
                         for (int i = 0; i < words.length - 2; i++) {
@@ -1087,18 +1097,13 @@ public class CommandRecognizerEngine extends RecognizerEngine {
                                 lit + res.getText(R.string.at_other), "O", 0);
                         count++;
                     }
-                }
 
-
-                // add 'CALL JACK JONES', with valid personId
-                if (count == 0 && contactId != VoiceContact.ID_UNDEFINED) {
-                    // TODO: what should really happen here is, we find
-                    // all phones for this contact, and create a label that
-                    // says "call person X at phone type Y", and add intents
-                    // for each of them to the return list.
-                    // It's too late in Gingerbread to add the strings that
-                    // would be required for this, so we'll just ignore
-                    // this person.
+                    if (fallbackId != VoiceContact.ID_UNDEFINED) {
+                        addCallIntent(intents, ContentUris.withAppendedId(
+                                Phone.CONTENT_URI, fallbackId),
+                                lit, "", 0);
+                        count++;
+                    }
                 }
             }
 
@@ -1134,7 +1139,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
                         }
                         addIntent(intents, intent);
                     } catch (URISyntaxException e) {
-                        if (Config.LOGD) {
+                        if (false) {
                             Log.d(TAG, "onRecognitionSuccess: poorly " +
                                     "formed URI in grammar" + e);
                         }
@@ -1178,7 +1183,7 @@ public class CommandRecognizerEngine extends RecognizerEngine {
 
             // can't parse result
             else {
-                if (Config.LOGD) Log.d(TAG, "onRecognitionSuccess: parse error");
+                if (false) Log.d(TAG, "onRecognitionSuccess: parse error");
             }
         }
 
@@ -1201,10 +1206,10 @@ public class CommandRecognizerEngine extends RecognizerEngine {
     // only add if different
     private static void addCallIntent(ArrayList<Intent> intents, Uri uri, String literal,
             String phoneType, int flags) {
-        Intent intent = new Intent(Intent.ACTION_CALL_PRIVILEGED, uri).
-        setFlags(flags).
-        putExtra(SENTENCE_EXTRA, literal).
-        putExtra(PHONE_TYPE_EXTRA, phoneType);
+        Intent intent = new Intent(Intent.ACTION_CALL_PRIVILEGED, uri)
+                .setFlags(flags)
+                .putExtra(SENTENCE_EXTRA, literal)
+                .putExtra(PHONE_TYPE_EXTRA, phoneType);
         addIntent(intents, intent);
     }
 }

@@ -21,7 +21,6 @@ import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.CallLog;
-import android.util.Config;
 import android.util.Log;
 import java.io.BufferedReader;
 import java.io.File;
@@ -50,6 +49,10 @@ public class VoiceContact {
     public final long mMobileId;
     public final long mWorkId;
     public final long mOtherId;
+    /**
+     * Id for a phone number which doesn't belong to any other ids stored above.
+     */
+    public final long mFallbackId;
 
     /**
      * Constructor.
@@ -63,7 +66,7 @@ public class VoiceContact {
      * @param otherId other ID in phone table.
      */
     private VoiceContact(String name, long contactId, long primaryId,
-            long homeId, long mobileId, long workId,long otherId) {
+            long homeId, long mobileId, long workId, long otherId, long fallbackId) {
         mName = name;
         mContactId = contactId;
         mPrimaryId = primaryId;
@@ -71,6 +74,7 @@ public class VoiceContact {
         mMobileId = mobileId;
         mWorkId = workId;
         mOtherId = otherId;
+        mFallbackId = fallbackId;
     }
 
     @Override
@@ -83,6 +87,7 @@ public class VoiceContact {
         hash = LARGE_PRIME * (hash + (int)mMobileId);
         hash = LARGE_PRIME * (hash + (int)mWorkId);
         hash = LARGE_PRIME * (hash + (int)mOtherId);
+        hash = LARGE_PRIME * (hash + (int)mFallbackId);
         return mName.hashCode() + hash;
     }
 
@@ -94,7 +99,8 @@ public class VoiceContact {
                 + " mHomeId=" + mHomeId
                 + " mMobileId=" + mMobileId
                 + " mWorkId=" + mWorkId
-                + " mOtherId=" + mOtherId;
+                + " mOtherId=" + mOtherId
+                + " mFallbackId=" + mFallbackId;
     }
 
     /**
@@ -103,7 +109,7 @@ public class VoiceContact {
      * the contact list content provider.
      */
     public static List<VoiceContact> getVoiceContacts(Activity activity) {
-        if (Config.LOGD) Log.d(TAG, "VoiceContact.getVoiceContacts");
+        if (false) Log.d(TAG, "VoiceContact.getVoiceContacts");
 
         List<VoiceContact> contacts = new ArrayList<VoiceContact>();
 
@@ -122,7 +128,9 @@ public class VoiceContact {
         Cursor cursor = activity.getContentResolver().query(
                 Phone.CONTENT_URI, phonesProjection,
                 Phone.NUMBER + " NOT NULL", null,
-                Phone.LAST_TIME_CONTACTED + " DESC, " + Phone.DISPLAY_NAME + " ASC");
+                Phone.LAST_TIME_CONTACTED + " DESC, "
+                        + Phone.DISPLAY_NAME + " ASC, "
+                        + Phone._ID + " DESC");
 
         final int phoneIdColumn = cursor.getColumnIndexOrThrow(Phone._ID);
         final int typeColumn = cursor.getColumnIndexOrThrow(Phone.TYPE);
@@ -139,6 +147,7 @@ public class VoiceContact {
         long mobileId = ID_UNDEFINED;
         long workId = ID_UNDEFINED;
         long otherId = ID_UNDEFINED;
+        long fallbackId = ID_UNDEFINED;
 
         // loop over phone table
         for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext()) {
@@ -150,7 +159,7 @@ public class VoiceContact {
             long personIdAtCursor = cursor.getLong(personIdColumn);
 
             /*
-            if (Config.LOGD) {
+            if (false) {
                 Log.d(TAG, "phoneId=" + phoneIdAtCursor
                         + " type=" + typeAtCursor
                         + " isPrimary=" + isPrimaryAtCursor
@@ -164,7 +173,7 @@ public class VoiceContact {
             // encountered a new name, so generate current VoiceContact
             if (name != null && !name.equals(nameAtCursor)) {
                 contacts.add(new VoiceContact(name, personId, primaryId,
-                        homeId, mobileId, workId, otherId));
+                        homeId, mobileId, workId, otherId, fallbackId));
                 name = null;
             }
 
@@ -177,6 +186,7 @@ public class VoiceContact {
                 mobileId = ID_UNDEFINED;
                 workId = ID_UNDEFINED;
                 otherId = ID_UNDEFINED;
+                fallbackId = ID_UNDEFINED;
             }
 
             // if labeled, then patch to HOME/MOBILE/WORK/OTHER
@@ -197,6 +207,7 @@ public class VoiceContact {
                 }
             }
 
+            boolean idAtCursorWasUsed = false;
             // save the home, mobile, or work phone id
             switch (typeAtCursor) {
                 case Phone.TYPE_HOME:
@@ -204,38 +215,46 @@ public class VoiceContact {
                     if (isPrimaryAtCursor != 0) {
                         primaryId = phoneIdAtCursor;
                     }
+                    idAtCursorWasUsed = true;
                     break;
                 case Phone.TYPE_MOBILE:
                     mobileId = phoneIdAtCursor;
                     if (isPrimaryAtCursor != 0) {
                         primaryId = phoneIdAtCursor;
                     }
+                    idAtCursorWasUsed = true;
                     break;
                 case Phone.TYPE_WORK:
                     workId = phoneIdAtCursor;
                     if (isPrimaryAtCursor != 0) {
                         primaryId = phoneIdAtCursor;
                     }
+                    idAtCursorWasUsed = true;
                     break;
                 case Phone.TYPE_OTHER:
                     otherId = phoneIdAtCursor;
                     if (isPrimaryAtCursor != 0) {
                         primaryId = phoneIdAtCursor;
                     }
+                    idAtCursorWasUsed = true;
                     break;
+            }
+
+            if (fallbackId == ID_UNDEFINED && !idAtCursorWasUsed) {
+                fallbackId = phoneIdAtCursor;
             }
         }
 
         // generate the last VoiceContact
         if (name != null) {
             contacts.add(new VoiceContact(name, personId, primaryId,
-                            homeId, mobileId, workId, otherId));
+                            homeId, mobileId, workId, otherId, fallbackId));
         }
 
         // clean up cursor
         cursor.close();
 
-        if (Config.LOGD) Log.d(TAG, "VoiceContact.getVoiceContacts " + contacts.size());
+        if (false) Log.d(TAG, "VoiceContact.getVoiceContacts " + contacts.size());
 
         return contacts;
     }
@@ -246,7 +265,7 @@ public class VoiceContact {
      * @return a List of {@link VoiceContact} in a File.
      */
     public static List<VoiceContact> getVoiceContactsFromFile(File contactsFile) {
-        if (Config.LOGD) Log.d(TAG, "getVoiceContactsFromFile " + contactsFile);
+        if (false) Log.d(TAG, "getVoiceContactsFromFile " + contactsFile);
 
         List<VoiceContact> contacts = new ArrayList<VoiceContact>();
 
@@ -257,21 +276,21 @@ public class VoiceContact {
             String name;
             for (int id = 1; (name = br.readLine()) != null; id++) {
                 contacts.add(new VoiceContact(name, id, ID_UNDEFINED,
-                        ID_UNDEFINED, ID_UNDEFINED, ID_UNDEFINED, ID_UNDEFINED));
+                        ID_UNDEFINED, ID_UNDEFINED, ID_UNDEFINED, ID_UNDEFINED, ID_UNDEFINED));
             }
         }
         catch (IOException e) {
-            if (Config.LOGD) Log.d(TAG, "getVoiceContactsFromFile failed " + e);
+            if (false) Log.d(TAG, "getVoiceContactsFromFile failed " + e);
         }
         finally {
             try {
                 br.close();
             } catch (IOException e) {
-                if (Config.LOGD) Log.d(TAG, "getVoiceContactsFromFile failed during close " + e);
+                if (false) Log.d(TAG, "getVoiceContactsFromFile failed during close " + e);
             }
         }
 
-        if (Config.LOGD) Log.d(TAG, "getVoiceContactsFromFile " + contacts.size());
+        if (false) Log.d(TAG, "getVoiceContactsFromFile " + contacts.size());
 
         return contacts;
     }
@@ -295,7 +314,7 @@ public class VoiceContact {
         }
         cursor.close();
 
-        if (Config.LOGD) Log.d(TAG, "redialNumber " + number);
+        if (false) Log.d(TAG, "redialNumber " + number);
 
         return number;
     }
